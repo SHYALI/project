@@ -1,59 +1,45 @@
 const express = require("express");
-const { createTodo, updateTodo } = require("./types");
-const { todo } = require("./db");
+
 const app = express();
 
+const connectDatabase = require("./config/db");
+const cors = require('cors');
+
 app.use(express.json());
+//Connecting to .env file (path to .env file)
+
+require('dotenv').config();
+
+connectDatabase();
+
+const server = app.listen(process.env.PORT, ()=>{
+    console.log(`Server running on port http://localhost:${process.env.PORT}`);
+}) 
 
 
-app.post("/todo", async function(req, res) {
-    const createPayload = req.body;
-    const parsedPayload = createTodo.safeParse(createPayload);
+//Unhandled Promise Rejection
+process.on("unhandledRejecation", (err) => {
+    console.log(`Error: ${err.message}`);
+    console.log(`Shutting down server due to Unhandled Promise Rejection`);
 
-    if (!parsedPayload.success) {
-        res.status(411).json({
-            msg: "You sent the wrong inputs",
-        })
-        return;
-    }
-    await todo.create({
-        title: createPayload.title,
-        description: createPayload.description,
-        completed: false
-    })
-
-    res.json({
-        msg: "Todo created"
+    server.close(() => {
+        process.exit(1);
     })
 })
 
-app.get("/todos", async function(req, res) {
-
-    res.json({
-        todo : []
+app.use(
+    cors({
+      credentials: true,
+      origin: "*"
     })
+  );
 
-})
+//Route Imports
+const todo = require("./routes/todoRoutes");
+const todos = require("./routes/todoRoutes");
+const completed = require("./routes/todoRoutes");
 
-app.put("/completed", async function(req, res) {
-    const updatePayload = req.body;
-    const parsedPayload = updateTodo.safeParse(updatePayload);
-    if (!parsedPayload.success) {
-        res.status(411).json({
-            msg: "You sent the wrong inputs",
-        })
-        return;
-    }
+app.use("/api/v1",todo);
+app.use("/api/v1",todos);
+app.use("/api/v1",completed);
 
-    await todo.update({
-        _id: req.body.id
-    }, {
-      completed: true  
-    })
-
-    res.json({
-        msg: "Todo marked as completed"
-    })
-})
-
-app.listen(3000);
